@@ -12,13 +12,9 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "3.2", features = ["derive"] }
-crossterm = "0.25.0"
+crossterm = "0.25"
 dirs = "4"
 dp800.path = "../dp800"
-log = "0.4.17"
-parking_lot = "0.12"
-serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9.13"
+log = "0.4"
 tokio = { version = "1", features = ["time", "rt", "macros", "rt-multi-thread"] }
 tui = "0.19"

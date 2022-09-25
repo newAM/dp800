@@ -1,16 +1,13 @@
 use anyhow::Context;
-use clap::Parser;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dp800::{Dp800, Measurement};
-use serde::Deserialize;
 use std::{
-    fs::File,
-    io::{self, BufReader},
-    path::{Path, PathBuf},
+    io,
+    path::PathBuf,
     time::{Duration, Instant},
 };
 use tui::{
@@ -439,80 +436,23 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     }
 }
 
-#[derive(Deserialize)]
-struct Config {
-    address: String,
-}
-
-#[derive(Parser)]
-#[clap(about, version, author)]
-struct Args {
-    /// Path to a config file.
-    ///
-    /// Setting this option overrides the user configuration file.
-    #[clap(short, long)]
-    config: Option<PathBuf>,
-    /// PSU address, in the form of IP:PORT
-    ///
-    /// Setting this option overrides all configuration.
-    #[clap(short, long)]
-    address: Option<String>,
-}
-
-fn deser_config_file(path: &Path) -> anyhow::Result<Config> {
-    let config: Config =
-        serde_yaml::from_reader(BufReader::new(File::open(path).with_context(|| {
-            format!("Failed to open configuration file at: {}", path.display())
-        })?))
-        .with_context(|| {
-            format!(
-                "Failed to load configuration from file at: {}",
-                path.display()
-            )
-        })?;
-    Ok(config)
-}
-
-fn user_config() -> anyhow::Result<Option<Config>> {
-    if let Some(mut config_path) = dirs::config_dir() {
-        config_path.push("dp832-tui.yaml");
-
-        if config_path.is_file() {
-            Ok(Some(deser_config_file(&config_path)?))
-        } else {
-            Ok(None)
-        }
-    } else {
-        Ok(None)
-    }
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args: Args = Args::parse();
+    let mut conf: PathBuf =
+        dirs::config_dir().context("Unable to locate configuration directory")?;
+    conf.push("dp832.txt");
 
-    let config: Option<Config> = if let Some(config_file_path) = args.config {
-        Some(deser_config_file(&config_file_path)?)
-    } else {
-        user_config()?
-    };
+    let conf_file_contents: String = std::fs::read_to_string(&conf)
+        .with_context(|| format!("Failed to read configuration file {}", conf.display()))?;
 
-    let address: String = {
-        if let Some(address) = args.address {
-            address
-        } else if let Some(config) = config {
-            config.address
-        } else {
-            anyhow::bail!("DP832 address not provided")
-        }
-    };
+    let address: &str = conf_file_contents.trim();
 
-    log::debug!("Connecting");
-    let mut dp832: Dp800 = Dp800::connect(address).await?;
+    log::debug!("Connecting to {address}");
+    let mut dp832: Dp800 = Dp800::connect(&address)
+        .await
+        .with_context(|| format!("Failed to connect to power supply at {address}"))?;
     log::debug!("Connected");
     let ch: u8 = dp832.ch().await?;
-
-    // ctrlc::set_handler(|| std::process::exit(0)).context("Failed to set CTRL-C handler")?;
 
     // setup terminal
     enable_raw_mode()?;

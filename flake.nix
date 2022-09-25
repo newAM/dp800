@@ -7,10 +7,7 @@
       url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = {
@@ -23,37 +20,39 @@
       pkgs = nixpkgs.legacyPackages.${system};
       craneLib = crane.lib.${system};
 
-      commonArgs = {
-        src = ./.;
+      src = ./.;
+
+      cargoArtifacts = craneLib.buildDepsOnly {inherit src;};
+    in rec {
+      packages.default = craneLib.buildPackage {
+        inherit src;
+        inherit cargoArtifacts;
       };
 
-      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-    in rec {
-      packages.default = craneLib.buildPackage (commonArgs
-        // {
-          inherit cargoArtifacts;
-        });
-
-      apps.default = flake-utils.lib.mkApp {drv = packages.default;};
+      apps.default = {
+        type = "app";
+        program = "${packages.default}/bin/dp832";
+      };
 
       checks = {
         pkg = packages.default;
 
-        clippy = craneLib.cargoClippy (commonArgs
-          // {
-            inherit cargoArtifacts;
-            cargoClippyExtraArgs = "-- --deny warnings";
-          });
+        clippy = craneLib.cargoClippy {
+          inherit cargoArtifacts src;
+          cargoClippyExtraArgs = "-- --deny warnings";
+        };
 
-        rustfmt = craneLib.cargoFmt {src = ./.;};
+        rustfmt = craneLib.cargoFmt {
+          inherit cargoArtifacts src;
+        };
 
         alejandra = pkgs.runCommand "alejandra" {} ''
-          ${pkgs.alejandra}/bin/alejandra --check ${./.}
+          ${pkgs.alejandra}/bin/alejandra --check ${src}
           touch $out
         '';
 
         statix = pkgs.runCommand "statix" {} ''
-          ${pkgs.statix}/bin/statix check ${./.}
+          ${pkgs.statix}/bin/statix check ${src}
           touch $out
         '';
       };
