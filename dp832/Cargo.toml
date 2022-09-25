@@ -14,10 +14,8 @@ license = "MIT"
 anyhow = "1"
 clap = { version = "3.2", features = ["derive"] }
 crossterm = "0.25.0"
-ctrlc = "3"
 dirs = "4"
 dp800.path = "../dp800"
-futures-util = "0.3"
 log = "0.4.17"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
