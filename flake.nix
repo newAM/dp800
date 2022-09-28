@@ -25,12 +25,14 @@
       craneLib = crane.lib.${system};
 
       src = ./.;
+      buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
-      cargoArtifacts = craneLib.buildDepsOnly {inherit src;};
+      cargoArtifacts = craneLib.buildDepsOnly {
+        inherit src buildInputs;
+      };
     in rec {
       packages.default = craneLib.buildPackage {
-        inherit src;
-        inherit cargoArtifacts;
+        inherit cargoArtifacts src buildInputs;
       };
 
       apps.default = {
