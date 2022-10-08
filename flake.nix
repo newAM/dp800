@@ -24,24 +24,26 @@
       pkgs = nixpkgs.legacyPackages.${system};
       craneLib = crane.lib.${system};
 
-      src = ./.;
+      src = craneLib.cleanCargoSource ./.;
       buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
       cargoArtifacts = craneLib.buildDepsOnly {
         inherit src buildInputs;
       };
-    in rec {
+
+      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
+    in {
       packages.default = craneLib.buildPackage {
         inherit cargoArtifacts src buildInputs;
       };
 
       apps.default = {
         type = "app";
-        program = "${packages.default}/bin/dp832";
+        program = "${self.packages.${system}.default}/bin/dp832";
       };
 
       checks = {
-        pkg = packages.default;
+        pkg = self.packages.${system}.default;
 
         clippy = craneLib.cargoClippy {
           inherit cargoArtifacts src;
@@ -53,12 +55,12 @@
         };
 
         alejandra = pkgs.runCommand "alejandra" {} ''
-          ${pkgs.alejandra}/bin/alejandra --check ${src}
+          ${pkgs.alejandra}/bin/alejandra --check ${nixSrc}
           touch $out
         '';
 
         statix = pkgs.runCommand "statix" {} ''
-          ${pkgs.statix}/bin/statix check ${src}
+          ${pkgs.statix}/bin/statix check ${nixSrc}
           touch $out
         '';
       };
