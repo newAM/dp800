@@ -436,7 +436,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let mut conf: PathBuf =
         dirs::config_dir().context("Unable to locate configuration directory")?;
