@@ -31,8 +31,6 @@
       cargoArtifacts = craneLib.buildDepsOnly {
         inherit src buildInputs;
       };
-
-      nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
     in {
       packages.default = craneLib.buildPackage {
         inherit cargoArtifacts src buildInputs;
@@ -43,7 +41,9 @@
         program = "${self.packages.${system}.default}/bin/dp832";
       };
 
-      checks = {
+      checks = let
+        nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
+      in {
         pkg = self.packages.${system}.default;
 
         clippy = craneLib.cargoClippy {
