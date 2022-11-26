@@ -16,53 +16,62 @@
     crane,
     flake-utils,
   }:
-    flake-utils.lib.eachSystem [
-      "aarch64-darwin"
-      "aarch64-linux"
-      "x86_64-linux"
-    ] (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
-      craneLib = crane.lib.${system};
+    nixpkgs.lib.recursiveUpdate
+    (flake-utils.lib.eachSystem [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-linux"
+      ] (system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        craneLib = crane.lib.${system};
+        repo = builtins.path {
+          path = ./.;
+          name = "dp800-source";
+        };
 
-      src = craneLib.cleanCargoSource ./.;
-      buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
+        src = craneLib.cleanCargoSource repo;
+        buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
-      cargoArtifacts = craneLib.buildDepsOnly {
-        inherit src buildInputs;
-      };
-    in {
-      packages.default = craneLib.buildPackage {
-        inherit cargoArtifacts src buildInputs;
-      };
-
-      apps.default = {
-        type = "app";
-        program = "${self.packages.${system}.default}/bin/dp832";
-      };
-
-      checks = let
-        nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices ./. [".nix"];
+        cargoArtifacts = craneLib.buildDepsOnly {
+          inherit src buildInputs;
+        };
       in {
-        pkg = self.packages.${system}.default;
-
-        clippy = craneLib.cargoClippy {
-          inherit cargoArtifacts src;
-          cargoClippyExtraArgs = "-- --deny warnings";
+        packages.default = craneLib.buildPackage {
+          inherit cargoArtifacts src buildInputs;
         };
 
-        rustfmt = craneLib.cargoFmt {
-          inherit cargoArtifacts src;
+        apps.default = {
+          type = "app";
+          program = "${self.packages.${system}.default}/bin/dp832";
         };
 
-        alejandra = pkgs.runCommand "alejandra" {} ''
-          ${pkgs.alejandra}/bin/alejandra --check ${nixSrc}
-          touch $out
-        '';
+        checks = let
+          nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices repo [".nix"];
+        in {
+          pkg = self.packages.${system}.default;
 
-        statix = pkgs.runCommand "statix" {} ''
-          ${pkgs.statix}/bin/statix check ${nixSrc}
-          touch $out
-        '';
+          clippy = craneLib.cargoClippy {
+            inherit cargoArtifacts src;
+            cargoClippyExtraArgs = "-- --deny warnings";
+          };
+
+          rustfmt = craneLib.cargoFmt {
+            inherit cargoArtifacts src;
+          };
+
+          alejandra = pkgs.runCommand "alejandra" {} ''
+            ${pkgs.alejandra}/bin/alejandra --check ${nixSrc}
+            touch $out
+          '';
+
+          statix = pkgs.runCommand "statix" {} ''
+            ${pkgs.statix}/bin/statix check ${nixSrc}
+            touch $out
+          '';
+        };
+      })) {
+      overlays.default = final: prev: {
+        dp832 = self.packages.${prev.system}.default;
       };
-    });
+    };
 }
