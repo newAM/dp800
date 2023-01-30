@@ -12,7 +12,7 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1"
-crossterm = "0.25"
+crossterm = "0.26"
 dirs = "4"
 dp800.path = "../dp800"
 log = "0.4"
