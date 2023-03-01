@@ -28,15 +28,18 @@
           path = ./.;
           name = "dp800-source";
         };
+        cargoToml = nixpkgs.lib.importTOML ./dp832/Cargo.toml;
 
         src = craneLib.cleanCargoSource repo;
         buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
         cargoArtifacts = craneLib.buildDepsOnly {
+          inherit (cargoToml.package) name;
           inherit src buildInputs;
         };
       in {
         packages.default = craneLib.buildPackage {
+          inherit (cargoToml.package) name;
           inherit cargoArtifacts src buildInputs;
         };
 
