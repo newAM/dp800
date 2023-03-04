@@ -29,18 +29,18 @@
           name = "dp800-source";
         };
         cargoToml = nixpkgs.lib.importTOML ./dp832/Cargo.toml;
+        inherit (cargoToml.package) version;
+        pname = cargoToml.package.name;
 
         src = craneLib.cleanCargoSource repo;
         buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
         cargoArtifacts = craneLib.buildDepsOnly {
-          inherit (cargoToml.package) name;
-          inherit src buildInputs;
+          inherit src buildInputs pname version;
         };
       in {
         packages.default = craneLib.buildPackage {
-          inherit (cargoToml.package) name;
-          inherit cargoArtifacts src buildInputs;
+          inherit cargoArtifacts src buildInputs pname version;
         };
 
         apps.default = {
@@ -54,12 +54,12 @@
           pkg = self.packages.${system}.default;
 
           clippy = craneLib.cargoClippy {
-            inherit cargoArtifacts src;
+            inherit cargoArtifacts src pname version;
             cargoClippyExtraArgs = "-- --deny warnings";
           };
 
           rustfmt = craneLib.cargoFmt {
-            inherit cargoArtifacts src;
+            inherit cargoArtifacts src pname version;
           };
 
           alejandra = pkgs.runCommand "alejandra" {} ''
