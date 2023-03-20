@@ -13,7 +13,7 @@ license = "MIT"
 [dependencies]
 anyhow = "1"
 crossterm = "0.26"
-dirs = "4"
+dirs = "5"
 dp800.path = "../dp800"
 log = "0.4"
 tokio = { version = "1", features = ["time", "rt", "macros"] }
