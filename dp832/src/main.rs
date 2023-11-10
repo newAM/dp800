@@ -5,18 +5,18 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dp800::{Dp800, Measurement};
-use std::{
-    io,
-    path::PathBuf,
-    time::{Duration, Instant},
-};
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame, Terminal,
+};
+use std::{
+    io,
+    path::PathBuf,
+    time::{Duration, Instant},
 };
 
 const TIMEOUT: Duration = Duration::from_millis(250);
@@ -255,7 +255,7 @@ async fn run_app<B: Backend>(
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+fn ui(f: &mut Frame, app: &App) {
     let size = f.size();
 
     let mut constraints: Vec<Constraint> = vec![Constraint::Max(15)];

@@ -7,10 +7,14 @@
 
     crane.url = "github:ipetkov/crane";
     crane.inputs.nixpkgs.follows = "nixpkgs";
+
+    advisory-db.url = "github:rustsec/advisory-db";
+    advisory-db.flake = false;
   };
 
   outputs = {
     self,
+    advisory-db,
     nixpkgs,
     crane,
     flake-utils,
@@ -23,15 +27,12 @@
       ] (system: let
         pkgs = nixpkgs.legacyPackages.${system};
         craneLib = crane.lib.${system};
-        repo = builtins.path {
-          path = ./.;
-          name = "dp800-source";
-        };
+
         cargoToml = nixpkgs.lib.importTOML ./dp832/Cargo.toml;
         inherit (cargoToml.package) version;
         pname = cargoToml.package.name;
 
-        src = craneLib.cleanCargoSource repo;
+        src = craneLib.cleanCargoSource self;
         buildInputs = nixpkgs.lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
 
         cargoArtifacts = craneLib.buildDepsOnly {
@@ -48,9 +49,13 @@
         };
 
         checks = let
-          nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices repo [".nix"];
+          nixSrc = nixpkgs.lib.sources.sourceFilesBySuffices self [".nix"];
         in {
           pkg = self.packages.${system}.default;
+
+          audit = craneLib.cargoAudit {
+            inherit src advisory-db;
+          };
 
           clippy = craneLib.cargoClippy {
             inherit cargoArtifacts src pname version;

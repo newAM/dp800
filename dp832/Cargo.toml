@@ -16,5 +16,5 @@ crossterm = "0.27"
 dirs = "5"
 dp800.path = "../dp800"
 log = "0.4"
+ratatui = "0.24"
 tokio = { version = "1", features = ["time", "rt", "macros"] }
-tui = "0.19"
