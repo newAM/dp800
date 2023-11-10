@@ -11,4 +11,3 @@ repository = "https://github.com/newam/dp800"
 license = "MIT"
 
 [dependencies]
-tokio = { version = "1", features = ["net", "io-util"] }

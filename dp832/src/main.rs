@@ -19,8 +19,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-const TIMEOUT: Duration = Duration::from_millis(250);
-
 const NUM_CH: usize = 3;
 
 /// Vertical selection
@@ -100,22 +98,22 @@ struct App {
 }
 
 impl App {
-    async fn on_tick(&mut self) -> anyhow::Result<()> {
+    fn on_tick(&mut self) -> anyhow::Result<()> {
         for (idx, data) in self.data.iter_mut().enumerate() {
             let ch_idx = u8::try_from(idx).unwrap() + 1;
-            let meas: Measurement = self.dp832.measure(ch_idx).await?;
+            let meas: Measurement = self.dp832.measure(ch_idx)?;
 
             *data = Data {
-                output_state: self.dp832.output_state(ch_idx).await?,
+                output_state: self.dp832.output_state(ch_idx)?,
                 meas_voltage: meas.voltage,
                 meas_current: meas.current,
                 meas_power: meas.power,
-                sp_voltage: self.dp832.voltage(ch_idx).await?,
-                sp_current: self.dp832.current(ch_idx).await?,
-                limit_voltage: self.dp832.ovp(ch_idx).await?,
-                limit_current: self.dp832.ocp(ch_idx).await?,
-                ovp_on: self.dp832.ovp_on(ch_idx).await?,
-                ocp_on: self.dp832.ocp_on(ch_idx).await?,
+                sp_voltage: self.dp832.voltage(ch_idx)?,
+                sp_current: self.dp832.current(ch_idx)?,
+                limit_voltage: self.dp832.ovp(ch_idx)?,
+                limit_current: self.dp832.ocp(ch_idx)?,
+                ovp_on: self.dp832.ovp_on(ch_idx)?,
+                ocp_on: self.dp832.ocp_on(ch_idx)?,
             };
         }
 
@@ -127,12 +125,12 @@ impl App {
     }
 }
 
-async fn run_app<B: Backend>(
+fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
     tick_rate: Duration,
 ) -> anyhow::Result<()> {
-    app.on_tick().await?;
+    app.on_tick()?;
 
     let mut last_tick: Instant = Instant::now();
     loop {
@@ -155,10 +153,10 @@ async fn run_app<B: Backend>(
                             let value: f32 = app.input.parse().unwrap();
                             app.input = String::new();
                             match app.vsel {
-                                Vsel::SetVolt => app.dp832.set_voltage(app.ch, value).await?,
-                                Vsel::SetAmp => app.dp832.set_current(app.ch, value).await?,
-                                Vsel::Ovp => app.dp832.set_ovp(app.ch, value).await?,
-                                Vsel::Ocp => app.dp832.set_ocp(app.ch, value).await?,
+                                Vsel::SetVolt => app.dp832.set_voltage(app.ch, value)?,
+                                Vsel::SetAmp => app.dp832.set_current(app.ch, value)?,
+                                Vsel::Ovp => app.dp832.set_ovp(app.ch, value)?,
+                                Vsel::Ocp => app.dp832.set_ocp(app.ch, value)?,
                                 Vsel::Measure | Vsel::OvpOn | Vsel::OcpOn => unreachable!(),
                             }
                         }
@@ -184,20 +182,20 @@ async fn run_app<B: Backend>(
                             if usize::from(app.ch) > NUM_CH {
                                 app.ch = 1;
                             }
-                            app.dp832.set_ch(app.ch).await?;
+                            app.dp832.set_ch(app.ch)?;
                             // switching channels too quickly can cause the PSU
                             // to report invalid commands
-                            tokio::time::sleep(Duration::from_millis(50)).await;
+                            std::thread::sleep(Duration::from_millis(50));
                         }
                         KeyCode::Left | KeyCode::Char('h') => {
                             app.ch -= 1;
                             if app.ch == 0 {
                                 app.ch = NUM_CH as u8;
                             }
-                            app.dp832.set_ch(app.ch).await?;
+                            app.dp832.set_ch(app.ch)?;
                             // switching channels too quickly can cause the PSU
                             // to report invalid commands
-                            tokio::time::sleep(Duration::from_millis(50)).await;
+                            std::thread::sleep(Duration::from_millis(50));
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
                             app.vsel = app.vsel.prev();
@@ -206,11 +204,9 @@ async fn run_app<B: Backend>(
                             app.vsel = app.vsel.next();
                         }
                         KeyCode::Enter => match app.vsel {
-                            Vsel::Measure => {
-                                app.dp832
-                                    .set_output_state(app.ch, !app.ch_data().output_state)
-                                    .await?
-                            }
+                            Vsel::Measure => app
+                                .dp832
+                                .set_output_state(app.ch, !app.ch_data().output_state)?,
                             Vsel::SetVolt => app.input_title = "Voltage Setpoint (V)".to_string(),
                             Vsel::SetAmp => app.input_title = "Current Setpoint (A)".to_string(),
                             Vsel::Ovp => {
@@ -219,12 +215,8 @@ async fn run_app<B: Backend>(
                             Vsel::Ocp => {
                                 app.input_title = "Over Current Protection (A)".to_string()
                             }
-                            Vsel::OvpOn => {
-                                app.dp832.set_ovp_on(app.ch, !app.ch_data().ovp_on).await?
-                            }
-                            Vsel::OcpOn => {
-                                app.dp832.set_ocp_on(app.ch, !app.ch_data().ocp_on).await?
-                            }
+                            Vsel::OvpOn => app.dp832.set_ovp_on(app.ch, !app.ch_data().ovp_on)?,
+                            Vsel::OcpOn => app.dp832.set_ocp_on(app.ch, !app.ch_data().ocp_on)?,
                         },
                         _ => {}
                     }
@@ -233,23 +225,7 @@ async fn run_app<B: Backend>(
         }
 
         if last_tick.elapsed() >= tick_rate {
-            const NUM_RETRY: usize = 3;
-            for attempt in 1..=NUM_RETRY {
-                match tokio::time::timeout(TIMEOUT, app.on_tick()).await {
-                    Err(e) => {
-                        if attempt == NUM_RETRY {
-                            Err(e).with_context(|| {
-                                format!("DP832 sample timeout after {NUM_RETRY} attempts")
-                            })?;
-                        } else {
-                            log::warn!("Sample timeout attempt {attempt}/{NUM_RETRY}");
-                            tokio::time::sleep(TIMEOUT).await;
-                        }
-                    }
-                    Ok(result) => result?,
-                }
-            }
-
+            app.on_tick()?;
             last_tick = Instant::now();
         }
     }
@@ -436,8 +412,7 @@ fn ui(f: &mut Frame, app: &App) {
     }
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let mut conf: PathBuf =
         dirs::config_dir().context("Unable to locate configuration directory")?;
     conf.push("dp832.txt");
@@ -448,11 +423,10 @@ async fn main() -> anyhow::Result<()> {
     let address: &str = conf_file_contents.trim();
 
     log::debug!("Connecting to {address}");
-    let mut dp832: Dp800 = Dp800::connect(&address)
-        .await
+    let mut dp832: Dp800 = Dp800::connect(address)
         .with_context(|| format!("Failed to connect to power supply at {address}"))?;
     log::debug!("Connected");
-    let ch: u8 = dp832.ch().await?;
+    let ch: u8 = dp832.ch()?;
 
     // setup terminal
     enable_raw_mode()?;
@@ -462,7 +436,7 @@ async fn main() -> anyhow::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let tick_rate = Duration::from_millis(250);
+    const TICK_RATE: Duration = Duration::from_millis(250);
     let app = App {
         dp832,
         ch,
@@ -471,7 +445,7 @@ async fn main() -> anyhow::Result<()> {
         input: String::new(),
         data: Default::default(),
     };
-    let res = run_app(&mut terminal, app, tick_rate).await;
+    let res = run_app(&mut terminal, app, TICK_RATE);
 
     // restore terminal
     disable_raw_mode()?;

@@ -4,10 +4,11 @@
 //!
 //! [DP800 Series Programming Guide]: https://www.batronix.com/pdf/Rigol/ProgrammingGuide/DP800_ProgrammingGuide_EN.pdf
 
-use std::io;
-use std::str::FromStr;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpStream, ToSocketAddrs};
+use std::{
+    io::{self, BufRead, BufReader, BufWriter, Write},
+    net::{TcpStream, ToSocketAddrs},
+    str::FromStr,
+};
 
 fn parse_error() -> io::Error {
     io::Error::new(io::ErrorKind::Other, "Parse error")
@@ -133,154 +134,139 @@ impl std::fmt::Display for State {
 /// * Out-of-bounds values for channels will return the value for the
 ///   currently selected channel
 pub struct Dp800 {
-    stream: BufReader<TcpStream>,
-}
-
-impl From<TcpStream> for Dp800 {
-    fn from(stream: TcpStream) -> Self {
-        Self {
-            stream: BufReader::new(stream),
-        }
-    }
+    reader: BufReader<TcpStream>,
+    writer: BufWriter<TcpStream>,
 }
 
 impl Dp800 {
-    pub async fn connect<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
-        let stream = BufReader::new(tokio::net::TcpStream::connect(addr).await?);
-        Ok(Self { stream })
+    pub fn connect<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
+        let stream: TcpStream = std::net::TcpStream::connect(addr)?;
+        stream.set_read_timeout(Some(std::time::Duration::from_secs(1)))?;
+        Ok(Self {
+            reader: BufReader::new(stream.try_clone()?),
+            writer: BufWriter::new(stream),
+        })
     }
 
-    async fn cmd(&mut self, cmd: &str) -> io::Result<()> {
-        self.stream.write_all(cmd.as_bytes()).await
+    fn cmd(&mut self, cmd: &str) -> io::Result<()> {
+        self.writer.write_all(cmd.as_bytes())?;
+        self.writer.flush()
     }
 
-    async fn q(&mut self, query: &str) -> io::Result<String> {
-        let mut buf: Vec<u8> = Vec::with_capacity(64);
+    fn q(&mut self, query: &str) -> io::Result<String> {
+        let mut buf: String = String::with_capacity(64);
         {
-            self.stream.write_all(query.as_bytes()).await?;
-            self.stream.read_until(b'\n', &mut buf).await?;
+            self.writer.write_all(query.as_bytes())?;
+            self.writer.flush()?;
+            self.reader.read_line(&mut buf)?;
         }
-        let _ = buf.pop(); // remove newline
-        if let Ok(s) = String::from_utf8(buf) {
-            Ok(s)
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Invalid UTF-8"))
-        }
+        buf.pop();
+        Ok(buf)
     }
 
-    async fn q_parse<F>(&mut self, query: &str) -> io::Result<F>
+    fn q_parse<F>(&mut self, query: &str) -> io::Result<F>
     where
         F: FromStr,
     {
-        let s: String = self.q(query).await?;
+        let s: String = self.q(query)?;
         parse::<F>(s.as_str())
     }
 
-    async fn q_bool(&mut self, query: &str) -> io::Result<bool> {
-        let state: State = self.q_parse(query).await?;
+    fn q_bool(&mut self, query: &str) -> io::Result<bool> {
+        let state: State = self.q_parse(query)?;
         Ok(state.into())
     }
 
     /// Idenitfy the power supply.
-    pub async fn identify(&mut self) -> io::Result<Identify> {
-        self.q_parse("*IDN?\n").await
+    pub fn identify(&mut self) -> io::Result<Identify> {
+        self.q_parse("*IDN?\n")
     }
 
     /// Output state.
-    pub async fn output_state(&mut self, ch: u8) -> io::Result<bool> {
-        self.q_bool(format!(":OUTP? CH{ch}\n").as_str()).await
+    pub fn output_state(&mut self, ch: u8) -> io::Result<bool> {
+        self.q_bool(format!(":OUTP? CH{ch}\n").as_str())
     }
 
     /// Set the output state.
-    pub async fn set_output_state(&mut self, ch: u8, state: bool) -> io::Result<()> {
+    pub fn set_output_state(&mut self, ch: u8, state: bool) -> io::Result<()> {
         let state: State = state.into();
-        self.cmd(format!(":OUTP CH{ch},{state}\n").as_str()).await
+        self.cmd(format!(":OUTP CH{ch},{state}\n").as_str())
     }
 
     /// Currently selected channel.
-    pub async fn ch(&mut self) -> io::Result<u8> {
-        self.q_parse(":INST:NSEL?\n").await
+    pub fn ch(&mut self) -> io::Result<u8> {
+        self.q_parse(":INST:NSEL?\n")
     }
 
     /// Select a channel.
-    pub async fn set_ch(&mut self, ch: u8) -> io::Result<()> {
-        self.cmd(format!(":INST:NSEL {ch}\n").as_str()).await
+    pub fn set_ch(&mut self, ch: u8) -> io::Result<()> {
+        self.cmd(format!(":INST:NSEL {ch}\n").as_str())
     }
 
     /// Setpoint current in Amps.
-    pub async fn current(&mut self, ch: u8) -> io::Result<f32> {
-        self.q_parse(format!(":SOUR{ch}:CURR?\n").as_str()).await
+    pub fn current(&mut self, ch: u8) -> io::Result<f32> {
+        self.q_parse(format!(":SOUR{ch}:CURR?\n").as_str())
     }
 
     /// Set the current setpoint in Amps.
-    pub async fn set_current(&mut self, ch: u8, amps: f32) -> io::Result<()> {
-        self.cmd(format!(":SOUR{ch}:VOLT {amps:.3}\n").as_str())
-            .await
+    pub fn set_current(&mut self, ch: u8, amps: f32) -> io::Result<()> {
+        self.cmd(format!(":SOUR{ch}:CURR {amps:.3}\n").as_str())
     }
 
     /// Setpoint voltage in Volts.
-    pub async fn voltage(&mut self, ch: u8) -> io::Result<f32> {
-        self.q_parse(format!(":SOUR{ch}:VOLT?\n").as_str()).await
+    pub fn voltage(&mut self, ch: u8) -> io::Result<f32> {
+        self.q_parse(format!(":SOUR{ch}:VOLT?\n").as_str())
     }
 
     /// Set the voltage setpoint in Volts.
-    pub async fn set_voltage(&mut self, ch: u8, volts: f32) -> io::Result<()> {
+    pub fn set_voltage(&mut self, ch: u8, volts: f32) -> io::Result<()> {
         self.cmd(format!(":SOUR{ch}:VOLT {volts:.3}\n").as_str())
-            .await
     }
 
     /// Get a measurement of voltage, current, and power.
-    pub async fn measure(&mut self, ch: u8) -> io::Result<Measurement> {
-        self.q_parse(format!(":MEAS:ALL? CH{ch}\n").as_str()).await
+    pub fn measure(&mut self, ch: u8) -> io::Result<Measurement> {
+        self.q_parse(format!(":MEAS:ALL? CH{ch}\n").as_str())
     }
 
     /// Over current protection value in Amps.
-    pub async fn ocp(&mut self, ch: u8) -> io::Result<f32> {
+    pub fn ocp(&mut self, ch: u8) -> io::Result<f32> {
         self.q_parse(format!(":OUTP:OCP:VAL? CH{ch}\n").as_str())
-            .await
     }
 
     /// Set the over current protection value in Amps.
-    pub async fn set_ocp(&mut self, ch: u8, amps: f32) -> io::Result<()> {
+    pub fn set_ocp(&mut self, ch: u8, amps: f32) -> io::Result<()> {
         self.cmd(format!(":OUTP:OCP:VAL CH{ch},{amps:.3}\n").as_str())
-            .await
     }
 
     /// Returns `true` if over current protection is enabled.
-    pub async fn ocp_on(&mut self, ch: u8) -> io::Result<bool> {
+    pub fn ocp_on(&mut self, ch: u8) -> io::Result<bool> {
         self.q_bool(format!(":OUTP:OCP:STAT? CH{ch}\n").as_str())
-            .await
     }
 
     /// Enable or disable over current protection.
-    pub async fn set_ocp_on(&mut self, ch: u8, on: bool) -> io::Result<()> {
+    pub fn set_ocp_on(&mut self, ch: u8, on: bool) -> io::Result<()> {
         let state: State = on.into();
         self.cmd(format!(":OUTP:OCP:STAT CH{ch},{state}\n").as_str())
-            .await
     }
 
     /// Over voltage protection value in Volts.
-    pub async fn ovp(&mut self, ch: u8) -> io::Result<f32> {
+    pub fn ovp(&mut self, ch: u8) -> io::Result<f32> {
         self.q_parse(format!(":OUTP:OVP:VAL? CH{ch}\n").as_str())
-            .await
     }
 
     /// Set the over voltage protection value in Volts.
-    pub async fn set_ovp(&mut self, ch: u8, volts: f32) -> io::Result<()> {
+    pub fn set_ovp(&mut self, ch: u8, volts: f32) -> io::Result<()> {
         self.cmd(format!(":OUTP:OVP:VAL CH{ch},{volts:.3}\n").as_str())
-            .await
     }
 
     /// Returns `true` if over voltage protection is enabled.
-    pub async fn ovp_on(&mut self, ch: u8) -> io::Result<bool> {
+    pub fn ovp_on(&mut self, ch: u8) -> io::Result<bool> {
         self.q_bool(format!(":OUTP:OVP:STAT? CH{ch}\n").as_str())
-            .await
     }
 
     /// Enable or disable over voltage protection.
-    pub async fn set_ovp_on(&mut self, ch: u8, on: bool) -> io::Result<()> {
+    pub fn set_ovp_on(&mut self, ch: u8, on: bool) -> io::Result<()> {
         let state: State = on.into();
         self.cmd(format!(":OUTP:OVP:STAT CH{ch},{state}\n").as_str())
-            .await
     }
 }
