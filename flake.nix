@@ -26,7 +26,7 @@
         "x86_64-linux"
       ] (system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        craneLib = crane.lib.${system};
+        craneLib = crane.mkLib pkgs;
 
         cargoToml = nixpkgs.lib.importTOML ./dp832/Cargo.toml;
         inherit (cargoToml.package) version;
