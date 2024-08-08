@@ -232,7 +232,7 @@ fn run_app<B: Backend>(
 }
 
 fn ui(f: &mut Frame, app: &App) {
-    let size = f.size();
+    let area = f.area();
 
     let mut constraints: Vec<Constraint> = vec![Constraint::Max(15)];
     if !app.input_title.is_empty() {
@@ -243,7 +243,7 @@ fn ui(f: &mut Frame, app: &App) {
     let vertical_split = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
-        .split(size);
+        .split(area);
 
     let mut veritical_iterator = vertical_split.iter();
 
