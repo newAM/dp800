@@ -6,7 +6,6 @@
     flake-utils.url = "github:numtide/flake-utils";
 
     crane.url = "github:ipetkov/crane";
-    crane.inputs.nixpkgs.follows = "nixpkgs";
 
     advisory-db.url = "github:rustsec/advisory-db";
     advisory-db.flake = false;
