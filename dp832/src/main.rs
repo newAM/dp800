@@ -2,16 +2,16 @@ use anyhow::Context;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use dp800::{Dp800, Measurement};
 use ratatui::{
+    Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    Frame, Terminal,
 };
 use std::{
     io,
@@ -285,11 +285,7 @@ fn ui(f: &mut Frame, app: &App) {
         };
 
         let bool_to_on_off = |val| {
-            if val {
-                "On"
-            } else {
-                "Off"
-            }
+            if val { "On" } else { "Off" }
         };
 
         {

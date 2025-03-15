@@ -1,13 +1,14 @@
 [package]
 name = "dp800"
 version = "0.1.0"
-edition = "2021"
 
 description = "Rigol DP800 power supply API"
-authors = ["Alex Martens <alex@thinglab.org>"]
 categories = ["hardware-support"]
 keywords = ["rigol"]
-repository = "https://github.com/newam/dp800"
-license = "MIT"
+
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
 
 [dependencies]

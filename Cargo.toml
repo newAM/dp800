@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
 members = ["dp800", "dp832"]
+
+[workspace.package]
+edition = "2024"
+authors = ["Alex Martens <alex@thinglab.org>"]
+repository = "https://github.com/newam/dp800"
+license = "MIT"

@@ -1,14 +1,15 @@
 [package]
 name = "dp832"
 version = "0.1.0"
-edition = "2021"
 
 description = "Rigol DP832 power supply TUI"
-authors = ["Alex Martens <alex@thinglab.org>"]
 categories = ["hardware-support"]
 keywords = ["rigol"]
-repository = "https://github.com/newam/dp800"
-license = "MIT"
+
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
 
 [dependencies]
 anyhow = "1"
