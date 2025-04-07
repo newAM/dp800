@@ -13,7 +13,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = "1"
-crossterm = "0.28"
+crossterm = "0.29"
 dirs = "6"
 dp800.path = "../dp800"
 log = "0.4"
