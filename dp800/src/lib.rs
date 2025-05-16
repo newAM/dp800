@@ -11,7 +11,7 @@ use std::{
 };
 
 fn parse_error() -> io::Error {
-    io::Error::new(io::ErrorKind::Other, "Parse error")
+    io::Error::other("Parse error")
 }
 
 fn parse<F>(s: &str) -> io::Result<F>
