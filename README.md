@@ -21,4 +21,4 @@ This file must contain exactly one line with the address and port of the power s
 10.0.0.2:5555
 ```
 
-[configuration directory]: https://docs.rs/dirs/4.0.0/dirs/fn.config_dir.html
+[configuration directory]: https://docs.rs/dirs/6.0.0/dirs/fn.config_dir.html
