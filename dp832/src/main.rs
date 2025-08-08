@@ -140,86 +140,82 @@ fn run_app<B: Backend>(
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
 
-        if crossterm::event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if !app.input_title.is_empty() {
-                    match key.code {
-                        KeyCode::Char('q') => return Ok(()),
-                        KeyCode::Enter => {
-                            app.input_title = String::new();
-                            // should not panic with character input limitations
-                            // would be a good thing to fuzz if this was more than
-                            // a simple weekend project
-                            let value: f32 = app.input.parse().unwrap();
-                            app.input = String::new();
-                            match app.vsel {
-                                Vsel::SetVolt => app.dp832.set_voltage(app.ch, value)?,
-                                Vsel::SetAmp => app.dp832.set_current(app.ch, value)?,
-                                Vsel::Ovp => app.dp832.set_ovp(app.ch, value)?,
-                                Vsel::Ocp => app.dp832.set_ocp(app.ch, value)?,
-                                Vsel::Measure | Vsel::OvpOn | Vsel::OcpOn => unreachable!(),
-                            }
+        if crossterm::event::poll(timeout)?
+            && let Event::Key(key) = event::read()?
+        {
+            if !app.input_title.is_empty() {
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Enter => {
+                        app.input_title = String::new();
+                        // should not panic with character input limitations
+                        // would be a good thing to fuzz if this was more than
+                        // a simple weekend project
+                        let value: f32 = app.input.parse().unwrap();
+                        app.input = String::new();
+                        match app.vsel {
+                            Vsel::SetVolt => app.dp832.set_voltage(app.ch, value)?,
+                            Vsel::SetAmp => app.dp832.set_current(app.ch, value)?,
+                            Vsel::Ovp => app.dp832.set_ovp(app.ch, value)?,
+                            Vsel::Ocp => app.dp832.set_ocp(app.ch, value)?,
+                            Vsel::Measure | Vsel::OvpOn | Vsel::OcpOn => unreachable!(),
                         }
-                        KeyCode::Char(c @ ('0'..='9' | '.')) => {
-                            if app.input.len() < 16 {
-                                app.input.push(c);
-                            }
-                        }
-                        KeyCode::Backspace => {
-                            app.input.pop();
-                        }
-                        KeyCode::Esc => {
-                            app.input_title = String::new();
-                            app.input = String::new();
-                        }
-                        _ => (),
                     }
-                } else {
-                    match key.code {
-                        KeyCode::Char('q') => return Ok(()),
-                        KeyCode::Right | KeyCode::Char('l') => {
-                            app.ch += 1;
-                            if usize::from(app.ch) > NUM_CH {
-                                app.ch = 1;
-                            }
-                            app.dp832.set_ch(app.ch)?;
-                            // switching channels too quickly can cause the PSU
-                            // to report invalid commands
-                            std::thread::sleep(Duration::from_millis(50));
+                    KeyCode::Char(c @ ('0'..='9' | '.')) => {
+                        if app.input.len() < 16 {
+                            app.input.push(c);
                         }
-                        KeyCode::Left | KeyCode::Char('h') => {
-                            app.ch -= 1;
-                            if app.ch == 0 {
-                                app.ch = NUM_CH as u8;
-                            }
-                            app.dp832.set_ch(app.ch)?;
-                            // switching channels too quickly can cause the PSU
-                            // to report invalid commands
-                            std::thread::sleep(Duration::from_millis(50));
-                        }
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            app.vsel = app.vsel.prev();
-                        }
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            app.vsel = app.vsel.next();
-                        }
-                        KeyCode::Enter => match app.vsel {
-                            Vsel::Measure => app
-                                .dp832
-                                .set_output_state(app.ch, !app.ch_data().output_state)?,
-                            Vsel::SetVolt => app.input_title = "Voltage Setpoint (V)".to_string(),
-                            Vsel::SetAmp => app.input_title = "Current Setpoint (A)".to_string(),
-                            Vsel::Ovp => {
-                                app.input_title = "Over Voltage Protection (V)".to_string()
-                            }
-                            Vsel::Ocp => {
-                                app.input_title = "Over Current Protection (A)".to_string()
-                            }
-                            Vsel::OvpOn => app.dp832.set_ovp_on(app.ch, !app.ch_data().ovp_on)?,
-                            Vsel::OcpOn => app.dp832.set_ocp_on(app.ch, !app.ch_data().ocp_on)?,
-                        },
-                        _ => {}
                     }
+                    KeyCode::Backspace => {
+                        app.input.pop();
+                    }
+                    KeyCode::Esc => {
+                        app.input_title = String::new();
+                        app.input = String::new();
+                    }
+                    _ => (),
+                }
+            } else {
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Right | KeyCode::Char('l') => {
+                        app.ch += 1;
+                        if usize::from(app.ch) > NUM_CH {
+                            app.ch = 1;
+                        }
+                        app.dp832.set_ch(app.ch)?;
+                        // switching channels too quickly can cause the PSU
+                        // to report invalid commands
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
+                    KeyCode::Left | KeyCode::Char('h') => {
+                        app.ch -= 1;
+                        if app.ch == 0 {
+                            app.ch = NUM_CH as u8;
+                        }
+                        app.dp832.set_ch(app.ch)?;
+                        // switching channels too quickly can cause the PSU
+                        // to report invalid commands
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        app.vsel = app.vsel.prev();
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        app.vsel = app.vsel.next();
+                    }
+                    KeyCode::Enter => match app.vsel {
+                        Vsel::Measure => app
+                            .dp832
+                            .set_output_state(app.ch, !app.ch_data().output_state)?,
+                        Vsel::SetVolt => app.input_title = "Voltage Setpoint (V)".to_string(),
+                        Vsel::SetAmp => app.input_title = "Current Setpoint (A)".to_string(),
+                        Vsel::Ovp => app.input_title = "Over Voltage Protection (V)".to_string(),
+                        Vsel::Ocp => app.input_title = "Over Current Protection (A)".to_string(),
+                        Vsel::OvpOn => app.dp832.set_ovp_on(app.ch, !app.ch_data().ovp_on)?,
+                        Vsel::OcpOn => app.dp832.set_ocp_on(app.ch, !app.ch_data().ocp_on)?,
+                    },
+                    _ => {}
                 }
             }
         }
