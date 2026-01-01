@@ -134,7 +134,10 @@ fn run_app<B: Backend>(
 
     let mut last_tick: Instant = Instant::now();
     loop {
-        terminal.draw(|f| ui(f, &app))?;
+        terminal
+            .draw(|f| ui(f, &app))
+            .ok()
+            .context("Failed to draw")?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
