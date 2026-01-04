@@ -119,6 +119,7 @@
         default = {
           type = "app";
           program = "${pkgs.dp832}/bin/dp832";
+          inherit (pkgs.dp832) meta;
         };
       }
     );
