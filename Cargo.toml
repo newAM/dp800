@@ -3,6 +3,7 @@ resolver = "2"
 members = ["dp800", "dp832"]
 
 [workspace.package]
+version = "1.0.0"
 edition = "2024"
 authors = ["Alex Martens <alex@thinglab.org>"]
 repository = "https://github.com/newam/dp800"

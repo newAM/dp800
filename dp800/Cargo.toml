@@ -1,11 +1,11 @@
 [package]
 name = "dp800"
-version = "0.1.0"
 
 description = "Rigol DP800 power supply API"
 categories = ["hardware-support"]
 keywords = ["rigol"]
 
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 repository.workspace = true

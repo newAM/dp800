@@ -1,11 +1,11 @@
 [package]
 name = "dp832"
-version = "0.1.0"
 
 description = "Rigol DP832 power supply TUI"
 categories = ["hardware-support"]
 keywords = ["rigol"]
 
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 repository.workspace = true
