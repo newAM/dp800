@@ -305,11 +305,11 @@ dependencies = [
 
 [[package]]
 name = "dp800"
-version = "0.1.0"
+version = "1.0.0"
 
 [[package]]
 name = "dp832"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "crossterm",
