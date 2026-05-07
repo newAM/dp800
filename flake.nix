@@ -77,14 +77,10 @@
         };
 
         nativeCheckInputs = [
-          prev.cargo-audit
           prev.clippy
         ];
 
         preCheck = ''
-          echo "Running cargo audit..."
-          cargo audit -n -d ${advisory-db} --ignore yanked
-
           echo "Running clippy..."
           cargo clippy -- -Dwarnings
         '';
@@ -141,6 +137,26 @@
       dp832 = pkgs.dp832;
 
       formatting = (treefmtEval pkgs).config.build.check self;
+
+      audit = pkgs.stdenvNoCC.mkDerivation {
+        pname = cargoToml.package.name + "-audit";
+        version = workspaceToml.workspace.package.version;
+
+        src = ./Cargo.lock;
+
+        dontUnpack = true;
+
+        nativeCheckInputs = [
+          pkgs.cargo-audit
+        ];
+
+        checkPhase = ''
+          echo "Running cargo audit..."
+          cargo audit -n -d ${advisory-db} --ignore yanked --file $src
+        '';
+
+        installPhase = "touch $out";
+      };
     });
 
     overlays.default = overlay;
