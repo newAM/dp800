@@ -94,6 +94,7 @@
           homepage = cargoToml.workspace.package.repository;
           license = prev.lib.licenses.mit;
           maintainers = [prev.lib.maintainers.newam];
+          mainProgram = "dp832";
         };
       };
     };
@@ -118,7 +119,7 @@
       in {
         default = {
           type = "app";
-          program = "${pkgs.dp832}/bin/dp832";
+          program = nixpkgs.lib.getExe pkgs.dp832;
           inherit (pkgs.dp832) meta;
         };
       }

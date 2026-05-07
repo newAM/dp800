@@ -164,11 +164,10 @@ fn run_app<B: Backend>(
                             Vsel::Measure | Vsel::OvpOn | Vsel::OcpOn => unreachable!(),
                         }
                     }
-                    KeyCode::Char(c @ ('0'..='9' | '.')) => {
-                        if app.input.len() < 16 {
-                            app.input.push(c);
-                        }
+                    KeyCode::Char(c @ ('0'..='9' | '.')) if app.input.len() < 16 => {
+                        app.input.push(c);
                     }
+
                     KeyCode::Backspace => {
                         app.input.pop();
                     }
